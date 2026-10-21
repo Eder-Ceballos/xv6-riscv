@@ -121,3 +121,41 @@ sys_vmprint(void)
 {
   return vmprint(myproc()->pagetable);
 }
+
+
+uint64
+sys_pgaccess(void)
+{
+  uint64 base, resultado;
+  int npages;
+
+  argaddr(0, &base);
+  argint(1, &npages);
+  argaddr(2, &resultado);
+
+  if(base % PGSIZE != 0 || npages < 1 || npages > 64)
+    return -1;
+
+  struct proc *p = myproc();
+  if(base + (uint64)npages * PGSIZE > p->sz)
+    return -1;
+
+  uint64 mask = 0;
+  for(int i = 0; i < npages; i++){
+    uint64 va = base + (uint64)i * PGSIZE;
+    // walk(..., 0) no asigna memoria: una página perezosa sin tabla
+    // ni PTE válida devuelve 0 y se reporta como no accedida.
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(pte && (*pte & PTE_V) && (*pte & PTE_A)){
+      mask |= 1L << i;
+      *pte &= ~PTE_A;
+    }
+  }
+  // Los bits se limpiaron en memoria, pero la TLB puede conservar
+  // copias con PTE_A encendido. Hay que invalidarla.
+  sfence_vma();
+
+  if(copyout(p->pagetable, p->sz, resultado, (char *)&mask, sizeof(mask)) < 0)
+    return -1;
+  return 0;
+}
