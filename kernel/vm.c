@@ -489,3 +489,33 @@ ismapped(pagetable_t pagetable, uint64 va)
   }
   return 0;
 }
+
+
+// Imprime recursivamente las PTEs válidas de una tabla de páginas.
+// level: 0 = raíz, 1 = intermedio, 2 = hojas.
+// va_base: dirección virtual donde empieza el rango de esta tabla.
+static void
+vmprint_rec(pagetable_t pagetable, int level, uint64 va_base)
+{
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if(!(pte & PTE_V))
+      continue;
+    uint64 va = va_base | ((uint64)i << (12 + 9 * (2 - level)));
+    for(int j = 0; j <= level; j++)
+      printk(" ..");
+    printk("%p: pte %p pa %p\n", (void *)va, (void *)pte,
+           (void *)PTE2PA(pte));
+    // Una PTE sin R, W ni X apunta a otra tabla: bajar un nivel.
+    if((pte & (PTE_R | PTE_W | PTE_X)) == 0)
+      vmprint_rec((pagetable_t)PTE2PA(pte), level + 1, va);
+  }
+}
+
+int
+vmprint(pagetable_t pagetable)
+{
+  printk("page table %p\n", (void *)pagetable);
+  vmprint_rec(pagetable, 0, 0);
+  return 0;
+}

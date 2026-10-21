@@ -113,3 +113,11 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+
+//propias
+uint64
+sys_vmprint(void)
+{
+  return vmprint(myproc()->pagetable);
+}
