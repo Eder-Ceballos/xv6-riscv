@@ -2710,8 +2710,10 @@ lazy_copy(char *s)
   }
 
   // read() and write() to these addresses should fail.
+  // Proyecto 3 (EAFIT 2026-2): 0x3fffffd000 se retiró de la lista porque
+  // ahí queda USYSCALL, una página que el proceso sí puede leer.
   unsigned long bad[] = {
-    0x3fffffc000, 0x3fffffd000, 0x3fffffe000,
+    0x3fffffc000, 0x3fffffe000,
     0x3ffffff000, 0x4000000000, 0x8000000000,
   };
   for (int i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
@@ -2790,7 +2792,9 @@ lazy_sbrk(char *s)
     p = sbrklazy(0);
   }
 
-  int n = TRAPFRAME - PGSIZE - (uint64)p;
+  // Proyecto 3 (EAFIT 2026-2): el heap ahora termina en USYSCALL, la
+  // página que queda justo debajo de TRAPFRAME.
+  int n = USYSCALL - PGSIZE - (uint64)p;
 
   char *p1 = sbrklazy(n);
   if (p1 < 0 || p1 != p) {
@@ -2799,8 +2803,8 @@ lazy_sbrk(char *s)
   }
 
   p = sbrk(PGSIZE);
-  if (p < 0 || (uint64)p != TRAPFRAME - PGSIZE) {
-    printf("sbrk(%d) returned %p, not expected TRAPFRAME-PGSIZE\n", PGSIZE, p);
+  if (p < 0 || (uint64)p != USYSCALL - PGSIZE) {
+    printf("sbrk(%d) returned %p, not expected USYSCALL-PGSIZE\n", PGSIZE, p);
     exit(1);
   }
 

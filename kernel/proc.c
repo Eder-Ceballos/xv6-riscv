@@ -132,6 +132,15 @@ found:
     return 0;
   }
 
+  // <<< MODIFICACIÓN INICIO: Reserva e inicialización de usyscall >>>
+  if ((p->usyscall = (struct usyscall *)kalloc()) == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  p->usyscall->pid = p->pid;
+  // <<< MODIFICACIÓN FIN >>>
+
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if (p->pagetable == 0) {
@@ -158,6 +167,13 @@ freeproc(struct proc *p)
   if (p->trapframe)
     kfree((void *)p->trapframe);
   p->trapframe = 0;
+
+  // <<< MODIFICACIÓN INICIO: Liberación de memoria física de usyscall >>>
+  if (p->usyscall)
+    kfree((void *)p->usyscall);
+  p->usyscall = 0;
+  // <<< MODIFICACIÓN FIN >>>
+
   if (p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -201,6 +217,16 @@ proc_pagetable(struct proc *p)
     return 0;
   }
 
+  // <<< MODIFICACIÓN INICIO: Mapeo de la página USYSCALL en la tabla de páginas del usuario >>>
+  if (mappages(pagetable, USYSCALL, PGSIZE, (uint64)(p->usyscall),
+               PTE_R | PTE_U) < 0) {
+    uvmunmap(pagetable, TRAPFRAME, 1, 0);
+    uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+    uvmfree(pagetable, 0);
+    return 0;
+  }
+  // <<< MODIFICACIÓN FIN >>>
+
   return pagetable;
 }
 
@@ -211,6 +237,11 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  
+  // <<< MODIFICACIÓN INICIO: Desmapeo de USYSCALL al liberar la tabla de páginas >>>
+  uvmunmap(pagetable, USYSCALL, 1, 0);
+  // <<< MODIFICACIÓN FIN >>>
+
   uvmfree(pagetable, sz);
 }
 
@@ -240,7 +271,7 @@ growproc(int n)
 
   sz = p->sz;
   if (n > 0) {
-    if (sz + n > TRAPFRAME) {
+    if (sz + n > USYSCALL) {
       return -1;
     }
     if ((sz = uvmalloc(p->pagetable, sz, sz + n, PTE_W)) == 0) {
@@ -585,7 +616,7 @@ wakeup(void *chan)
       p->chan = 0;
 
       // If this waiting process has gotten so far as to actually
-      // go to sleep, also set it back to RUNNING.
+      // go to sleep, also set it back to RUNNABLE.
       if (p->state == SLEEPING) {
         p->state = RUNNABLE;
       }
@@ -678,12 +709,12 @@ procdump(void)
 {
   static char *states[] = {
     // clang-format off
-    [UNUSED]    = "unused",
-    [USED]      = "used",
-    [SLEEPING]  = "sleep ",
-    [RUNNABLE]  = "runble",
-    [RUNNING]   = "run   ",
-    [ZOMBIE]    = "zombie"
+    [UNUSED]   = "unused",
+    [USED]     = "used",
+    [SLEEPING] = "sleep ",
+    [RUNNABLE] = "runble",
+    [RUNNING]  = "run   ",
+    [ZOMBIE]   = "zombie"
     // clang-format on
   };
   struct proc *p;
