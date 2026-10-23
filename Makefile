@@ -152,6 +152,10 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_sync\
 	$U/_pgtbltest\
+	$U/_prueba_a\
+	$U/_prueba_b\
+	$U/_uwrite_test\
+
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -1,7 +1,7 @@
 Proyecto 3 - Tablas de páginas en acción - evidencia de pruebas
 Prueba:     pgtbltest
-Fecha:      2026-10-21 13:07:40
-Commit:     b8b5f16
+Fecha:      2026-10-23 13:39:52
+Commit:     7f97438
 Máquina:    archy
 Duración:   26 s
 Fin:        terminó
